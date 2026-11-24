@@ -1,4 +1,4 @@
--- Telebirr receipt submission (Phase: resident screenshot intake).
+-- Telebirr receipt submission (resident screenshot intake).
 -- Screenshots are stored in a private bucket. Only trusted server code uses service_role
 -- to upload and create signed links; residents cannot mark payments as successful.
 
@@ -9,6 +9,10 @@ alter table public.payments
 create unique index if not exists payments_receipt_reference_unique
   on public.payments (lower(trim(receipt_reference)))
   where receipt_reference is not null;
+
+create unique index if not exists payments_one_pending_receipt_per_order
+  on public.payments (order_id)
+  where status = 'PENDING' and receipt_storage_path is not null;
 
 insert into storage.buckets (id, name, public, file_size_limit, allowed_mime_types)
 values (
