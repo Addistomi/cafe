@@ -258,7 +258,7 @@ export async function verifyTelebirrReceiptForOrder(
   if (!configuredNames.includes(actualRecipient)) {
     return {
       outcome: 'REJECTED',
-      reason: 'This receipt is for "' + receipt.creditedPartyName + '", not Fana Cafe\\'s configured merchant recipient.',
+      reason: 'This receipt is for "' + receipt.creditedPartyName + '", not the configured Fana Cafe recipient.',
       receipt,
     };
   }
