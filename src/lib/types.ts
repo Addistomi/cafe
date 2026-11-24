@@ -62,7 +62,7 @@ export interface OrderRow {
   created_at: string;
   reservation_expires_at: string | null;
   order_items?: OrderItemRow[];
-  payments?: { status: string; signature_verified: boolean }[];
+  payments?: { status: string; signature_verified: boolean; receipt_verified: boolean }[];
 }
 
 export interface OrderItemRow {
