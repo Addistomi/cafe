@@ -78,7 +78,7 @@ export async function verifyTelebirrReceiptForOrder(
   expectedAmount: number,
 ): Promise<TelebirrVerification> {
   const configuredNames = (process.env.TELEBIRR_VERIFIED_RECIPIENT_NAMES ?? '')
-    .split(/[;,|]/)
+    .split(/[,;|]/)
     .map(normalizeMerchantName)
     .filter(Boolean);
 
