@@ -66,7 +66,18 @@ export default async function PaymentsPage() {
                         <p className="text-xs text-muted">Telebirr settled: {formatETB(payment.verified_settled_amount)}</p>
                       )}
                       {payment.receipt_verification_message && (
-                        <p className="mt-1 text-xs text-muted">{payment.receipt_verification_message}</p>
+                        <div className={payment.receipt_verification_message.startsWith('This appears to be a fake transaction.')
+                          ? 'mt-2 rounded border border-danger/30 bg-danger-soft p-2'
+                          : 'mt-2'}>
+                          {payment.receipt_verification_message.startsWith('This appears to be a fake transaction.') && (
+                            <p className="text-xs font-bold text-danger">FAKE TRANSACTION DETECTED</p>
+                          )}
+                          <p className={payment.receipt_verification_message.startsWith('This appears to be a fake transaction.')
+                            ? 'mt-1 text-xs text-danger'
+                            : 'text-xs text-muted'}>
+                            {payment.receipt_verification_message}
+                          </p>
+                        </div>
                       )}
                       {payment.status === 'PENDING' && payment.receipt_reference && (
                         <form action={retryPendingTelebirrReceipt.bind(null, payment.id)} className="mt-2">
