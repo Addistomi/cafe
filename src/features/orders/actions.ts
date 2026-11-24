@@ -124,6 +124,13 @@ export async function submitPaymentReceipt(orderId: string, formData: FormData):
   const extension = allowed.get(file.type);
   if (!extension) return { ok: false, error: 'Upload a JPG, PNG or WebP image.' };
   if (file.size > 5 * 1024 * 1024) return { ok: false, error: 'The screenshot must be 5 MB or smaller.' };
+  const header = new Uint8Array(await file.slice(0, 12).arrayBuffer());
+  const validImage =
+    (file.type === 'image/jpeg' && header[0] === 0xff && header[1] === 0xd8 && header[2] === 0xff) ||
+    (file.type === 'image/png' && header.slice(0, 8).join(',') === '137,80,78,71,13,10,26,10') ||
+    (file.type === 'image/webp' && String.fromCharCode(...header.slice(0, 4)) === 'RIFF' &&
+      String.fromCharCode(...header.slice(8, 12)) === 'WEBP');
+  if (!validImage) return { ok: false, error: 'The uploaded file does not match a supported image format.' };
 
   const db = createAdminClient();
   const { data: order, error: orderError } = await db.from('orders')
