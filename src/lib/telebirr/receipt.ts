@@ -52,7 +52,7 @@ export async function fetchTelebirrReceipt(reference: string): Promise<TelebirrL
     const receipt = parseTelebirrReceiptHtml(html);
     if (receipt) return { kind: 'receipt', receipt };
 
-    const plain = html.replace(/<[^>]*>/g, ' ').replace(/&nbsp;/gi, ' ').replace(/\\s+/g, ' ').toLowerCase();
+    const plain = html.replace(/<[^>]*>/g, ' ').replace(/&nbsp;/gi, ' ').replace(/\s+/g, ' ').toLowerCase();
     if (/(receipt|transaction|record)\s+(was\s+)?not found|no\s+(receipt|transaction|record)\b|invalid receipt number/.test(plain)) {
       return { kind: 'not_found' };
     }
