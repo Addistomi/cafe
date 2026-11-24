@@ -1,5 +1,6 @@
 'use server';
 
+import { randomUUID } from 'node:crypto';
 import { revalidatePath } from 'next/cache';
 import { z } from 'zod';
 import { createAdminClient } from '@/lib/supabase/admin';
@@ -100,9 +101,78 @@ export async function approveResident(userId: string): Promise<void> {
   revalidatePath('/admin/residents');
 }
 
-/** Development stand-in for a verified provider callback. Only enabled in mock mode. */
+/**
+ * Resident receipt intake only. This deliberately creates a PENDING payment record.
+ * OCR text/reference is user-correctable and is NOT proof of payment. A verified
+ * Telebirr query/callback must be implemented before any record becomes SUCCESS.
+ */
+export async function submitPaymentReceipt(orderId: string, formData: FormData): Promise<ActionResult> {
+  const profile = await getProfile();
+  if (!profile || profile.role !== 'CUSTOMER' || profile.account_status !== 'ACTIVE')
+    return { ok: false, error: 'An active resident account is required.' };
+  if (!z.string().uuid().safeParse(orderId).success)
+    return { ok: false, error: 'Invalid order.' };
+
+  const reference = String(formData.get('reference') ?? '').trim();
+  if (!/^[A-Za-z0-9][A-Za-z0-9._/-]{5,63}$/.test(reference))
+    return { ok: false, error: 'Enter the transaction reference shown on your receipt.' };
+
+  const file = formData.get('receipt');
+  if (!(file instanceof File) || file.size === 0)
+    return { ok: false, error: 'Choose your Telebirr payment screenshot.' };
+  const allowed = new Map([['image/jpeg', 'jpg'], ['image/png', 'png'], ['image/webp', 'webp']]);
+  const extension = allowed.get(file.type);
+  if (!extension) return { ok: false, error: 'Upload a JPG, PNG or WebP image.' };
+  if (file.size > 5 * 1024 * 1024) return { ok: false, error: 'The screenshot must be 5 MB or smaller.' };
+
+  const db = createAdminClient();
+  const { data: order, error: orderError } = await db.from('orders')
+    .select('id, customer_id, status, total_amount, currency')
+    .eq('id', orderId).single();
+  if (orderError || !order || order.customer_id !== profile.id || order.status !== 'AWAITING_PAYMENT')
+    return { ok: false, error: 'This order is not available for payment submission.' };
+
+  const { data: successful } = await db.from('payments').select('id')
+    .eq('order_id', orderId).eq('status', 'SUCCESS').eq('signature_verified', true).maybeSingle();
+  if (successful) return { ok: false, error: 'This order has already been paid.' };
+
+  const { data: pending } = await db.from('payments').select('id')
+    .eq('order_id', orderId).eq('status', 'PENDING').not('receipt_storage_path', 'is', null).maybeSingle();
+  if (pending) return { ok: false, error: 'A receipt is already submitted for this order and is awaiting verification.' };
+
+  const storagePath = `${profile.id}/${orderId}/${randomUUID()}.${extension}`;
+  const { error: uploadError } = await db.storage.from('payment-receipts').upload(storagePath, file, {
+    contentType: file.type, cacheControl: '3600', upsert: false,
+  });
+  if (uploadError) return { ok: false, error: 'The receipt could not be uploaded. Please try again.' };
+
+  const { error: insertError } = await db.from('payments').insert({
+    order_id: orderId,
+    provider: 'TELEBIRR',
+    merchant_order_id: `RECEIPT-${randomUUID()}`,
+    amount: order.total_amount,
+    currency: order.currency ?? 'ETB',
+    status: 'PENDING',
+    signature_verified: false,
+    receipt_reference: reference,
+    receipt_storage_path: storagePath,
+  });
+  if (insertError) {
+    await db.storage.from('payment-receipts').remove([storagePath]);
+    const message = insertError.code === '23505'
+      ? 'This Telebirr reference has already been submitted. Check the reference and contact the café if you believe this is an error.'
+      : 'Your receipt could not be saved. Please try again.';
+    return { ok: false, error: message };
+  }
+
+  for (const path of ['/admin', '/admin/payments', '/orders', `/orders/${orderId}`]) revalidatePath(path);
+  return { ok: true };
+}
+
+/** Development-only payment simulator. Never enabled in production. */
 export async function simulatePayment(orderId: string): Promise<ActionResult> {
-  if (process.env.PAYMENTS_MODE !== 'mock') return { ok: false, error: 'Mock payments are disabled.' };
+  if (process.env.PAYMENTS_MODE !== 'mock' || process.env.NODE_ENV === 'production')
+    return { ok: false, error: 'Mock payments are disabled.' };
   const profile = await getProfile();
   if (!profile || profile.role !== 'CUSTOMER' || profile.account_status !== 'ACTIVE') return { ok: false, error: 'An active resident account is required.' };
 
