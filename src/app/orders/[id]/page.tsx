@@ -1,6 +1,7 @@
 import { notFound, redirect } from 'next/navigation';
 import { getProfile } from '@/features/auth/session';
 import { getOrder, isPaid } from '@/features/orders/queries';
+import { createClient } from '@/lib/supabase/server';
 import { StatusPill } from '@/components/status-pill';
 import { OrderTimeline } from '@/components/timeline';
 import { formatETB } from '@/lib/money';
@@ -13,6 +14,16 @@ export default async function OrderPage({ params }: { params: Promise<{ id: stri
   if (!order) notFound();
   const paid = isPaid(order);
 
+  const supabase = await createClient();
+  const { data: latestReceipt } = await supabase.from('payments')
+    .select('status, receipt_reference, receipt_storage_path')
+    .eq('order_id', order.id)
+    .not('receipt_storage_path', 'is', null)
+    .order('created_at', { ascending: false })
+    .limit(1)
+    .maybeSingle();
+  const hasPendingReceipt = latestReceipt?.status === 'PENDING' && Boolean(latestReceipt.receipt_storage_path);
+
   return (
     <div className="mx-auto max-w-2xl space-y-6">
       <div className="flex items-start justify-between gap-3">
@@ -24,7 +35,8 @@ export default async function OrderPage({ params }: { params: Promise<{ id: stri
       </div>
 
       {order.status === 'AWAITING_PAYMENT' && !paid && (
-        <PayPanel orderId={order.id} total={formatETB(order.total_amount)} expires={order.reservation_expires_at} mock={process.env.PAYMENTS_MODE === 'mock'} />
+        <PayPanel orderId={order.id} total={formatETB(order.total_amount)} expires={order.reservation_expires_at}
+          mock={process.env.PAYMENTS_MODE === 'mock'} hasPendingReceipt={hasPendingReceipt} />
       )}
       {order.status === 'PENDING_ACCEPTANCE' && (
         <p className="card bg-warning-soft p-4 text-sm text-warning">The café is checking the kitchen. You’ll be able to pay as soon as it accepts.</p>
