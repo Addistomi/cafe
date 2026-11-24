@@ -1,3 +1,5 @@
+const MAX_HTML_BYTES = 512 * 1024;
+
 export type TelebirrReceipt = {
   receiptNo?: string;
   transactionStatus?: string;
