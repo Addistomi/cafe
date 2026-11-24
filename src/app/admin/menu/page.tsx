@@ -9,7 +9,7 @@ export default async function MenuManagementPage() {
   const [categoryResult, ingredientResult, mealResult] = await Promise.all([
     db.from('categories').select('id, name').eq('is_active', true).order('sort_order'),
     db.from('ingredients').select('id, name, base_unit').eq('is_active', true).order('name'),
-    db.from('meals').select('id, name, slug, description, category_id, base_price, preparation_minutes, image_url, is_available, recipe_ingredients(ingredient_id, quantity_per_serving, is_removable)').is('archived_at', null).order('name'),
+    db.from('meals').select('id, name, slug, description, category_id, base_price, preparation_minutes, image_url, is_available, recipe_ingredients(ingredient_id, quantity_per_serving, is_removable), meal_addons(id, name, additional_price, ingredient_id, quantity, is_available)').is('archived_at', null).order('name'),
   ]);
 
   return (
