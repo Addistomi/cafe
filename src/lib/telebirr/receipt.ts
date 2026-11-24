@@ -93,7 +93,7 @@ export async function verifyTelebirrReceiptForOrder(
   const lookup = await fetchTelebirrReceipt(reference);
 
   if (lookup.kind === 'not_found') {
-    return { outcome: 'REJECTED', reason: 'Telebirr has no receipt for this transaction reference.' };
+    return { outcome: 'REJECTED', reason: 'This appears to be a fake transaction. Telebirr could not find a receipt for reference ' + reference + '. The payment has not been accepted.' };
   }
   if (lookup.kind === 'unavailable') {
     return { outcome: 'PENDING', reason: lookup.reason };
