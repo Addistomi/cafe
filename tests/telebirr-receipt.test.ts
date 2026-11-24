@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { parseTelebirrReceiptHtml } from '../src/lib/telebirr/receipt';
+import { parseTelebirrReceiptHtml } from '../src/lib/telebirr/receipt-parser';
 
 const receiptHtml = '<table>' +
   '<tr><td>Payer Name</td><td>Test Payer</td></tr>' +
