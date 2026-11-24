@@ -88,8 +88,9 @@ function findReference(text: string): string {
   return candidates.sort((a, b) => b.length - a.length)[0]?.toUpperCase() ?? '';
 }
 
-export function PayPanel({ orderId, total, expires, mock, hasPendingReceipt = false }: {
+export function PayPanel({ orderId, total, expires, mock, hasPendingReceipt = false, merchantName, merchantAccount }: {
   orderId: string; total: string; expires: string | null; mock: boolean; hasPendingReceipt?: boolean;
+  merchantName: string; merchantAccount: string;
 }) {
   const router = useRouter();
   const [file, setFile] = useState<File | null>(null);
@@ -164,6 +165,27 @@ export function PayPanel({ orderId, total, expires, mock, hasPendingReceipt = fa
         {expires && <p className="mt-1 text-xs text-muted">Your ingredients are held until {new Date(expires).toLocaleTimeString('en-GB', { timeStyle: 'short', timeZone: 'Africa/Addis_Ababa' })}.</p>}
       </div>
 
+      <div className="rounded-field border border-line bg-surface p-4">
+        <p className="text-sm font-bold">Transfer to Fana Cafe's Telebirr merchant account</p>
+        <p className="mt-2 text-sm text-muted">Merchant name</p>
+        <p className="font-semibold">{merchantName}</p>
+        <p className="mt-2 text-sm text-muted">Merchant number / short code</p>
+        {merchantAccount ? (
+          <div className="mt-1 flex flex-wrap items-center gap-2">
+            <p className="font-mono text-lg font-bold tracking-wide">{merchantAccount}</p>
+            <button type="button" className="btn-secondary" onClick={() => {
+              if (!navigator.clipboard) { setError('Copy is unavailable in this browser. Please copy the number manually.'); return; }
+              void navigator.clipboard.writeText(merchantAccount)
+                .then(() => setNotice('Merchant number copied.'))
+                .catch(() => setError('Could not copy the merchant number. Please copy it manually.'));
+            }}>Copy number</button>
+          </div>
+        ) : (
+          <p className="mt-1 text-sm text-danger">The café has not configured its merchant number yet. Please contact the café before paying.</p>
+        )}
+        <p className="helper mt-3">Transfer the exact order total shown above. Upload the completed Telebirr receipt after the transfer succeeds.</p>
+      </div>
+
       {hasPendingReceipt ? (
         <div className="rounded-field border border-warning/30 bg-warning-soft p-4">
           <p className="font-bold text-warning">Receipt submitted · Awaiting verification</p>
@@ -211,7 +233,7 @@ export function PayPanel({ orderId, total, expires, mock, hasPendingReceipt = fa
             </div>
           )}
 
-          <button className="btn-primary w-full" disabled={!file || !/^[A-Z0-9]{10}$/.test(reference.trim()) || scanning || pending} onClick={submit}>
+          <button className="btn-primary w-full" disabled={!merchantAccount || !file || !/^[A-Z0-9]{10}$/.test(reference.trim()) || scanning || pending} onClick={submit}>
             {pending ? 'Submitting receipt…' : '3. Submit payment receipt'}
           </button>
         </>
