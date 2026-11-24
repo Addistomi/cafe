@@ -40,11 +40,14 @@ export default async function PaymentsPage() {
         {error ? <p className="p-5 text-sm text-danger">Payment records could not be loaded. Apply migration 0003_payment_receipts.sql if this page was just updated.</p> : payments.length === 0 ? <p className="p-6 text-sm text-muted">No payment records yet.</p> : (
           <div className="overflow-x-auto">
             <table className="w-full min-w-[980px] text-left text-sm">
-              <thead className="bg-coffee-soft/50 text-xs uppercase tracking-wide text-muted"><tr><th className="p-3">Order / resident</th><th className="p-3">Submitted reference</th><th className="p-3">Amount</th><th className="p-3">Status</th><th className="p-3">Verification</th><th className="p-3">Receipt</th><th className="p-3">Date</th></tr></thead>
+              <thead className="bg-coffee-soft/50 text-xs uppercase tracking-wide text-muted"><tr><th className="p-3">Order / resident</th><th className="p-3">Submitted reference</th><th className="p-3">Amount</th><th className="p-3">Status</th><th className="p-3">Verification</th><th className="p-3">Screenshot</th><th className="p-3">Official Telebirr receipt</th><th className="p-3">Date</th></tr></thead>
               <tbody className="divide-y divide-line/70">
                 {rows.map(({ payment, receiptUrl }) => {
                   const order = payment.orders as unknown as { order_number: string; customer_name_snapshot: string; floor_snapshot: number; apartment_snapshot: string } | null;
                   const success = payment.status === 'SUCCESS';
+                  const officialReceiptUrl = payment.receipt_reference && /^[A-Z0-9]{10}$/.test(payment.receipt_reference)
+                    ? `https://transactioninfo.ethiotelecom.et/receipt/${payment.receipt_reference}`
+                    : null;
                   return <tr key={payment.id}>
                     <td className="p-3"><p className="font-bold text-coffee">{order?.order_number ?? 'Order unavailable'}</p><p className="text-xs text-muted">{order?.customer_name_snapshot ?? '—'} · Floor {order?.floor_snapshot ?? '—'}, apt {order?.apartment_snapshot ?? '—'}</p></td>
                     <td className="p-3"><p className="max-w-[190px] truncate font-mono text-xs">{payment.receipt_reference ?? payment.transaction_id ?? payment.merchant_order_id}</p><p className="text-[10px] text-muted">{payment.provider}</p></td>
@@ -52,6 +55,7 @@ export default async function PaymentsPage() {
                     <td className="p-3"><span className={`rounded-full px-2.5 py-1 text-xs font-bold ${success ? 'bg-success-soft text-success' : 'bg-warning-soft text-warning'}`}>{payment.status}</span></td>
                     <td className="p-3">{payment.signature_verified ? <span className="font-semibold text-success">Verified</span> : <span className="text-warning">Not verified</span>}</td>
                     <td className="p-3">{receiptUrl ? <a className="font-semibold text-accent underline" href={receiptUrl} target="_blank" rel="noreferrer">View screenshot</a> : <span className="text-muted">—</span>}</td>
+                    <td className="p-3">{officialReceiptUrl ? <a className="font-semibold text-accent underline" href={officialReceiptUrl} target="_blank" rel="noreferrer">Open Telebirr receipt</a> : <span className="text-muted">—</span>}</td>
                     <td className="p-3 text-xs text-muted">{new Date(payment.paid_at ?? payment.created_at).toLocaleString('en-GB', { dateStyle: 'medium', timeStyle: 'short', timeZone: 'Africa/Addis_Ababa' })}</td>
                   </tr>;
                 })}
