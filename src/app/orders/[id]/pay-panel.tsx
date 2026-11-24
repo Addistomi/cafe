@@ -1,6 +1,6 @@
 'use client';
 
-import { useRef, useState, useTransition } from 'react';
+import { useState, useTransition } from 'react';
 import { useRouter } from 'next/navigation';
 import { submitPaymentReceipt, simulatePayment } from '@/features/orders/actions';
 
@@ -31,9 +31,9 @@ function loadOcr(): Promise<OcrApi> {
 }
 
 function findReference(text: string): string {
-  const labeled = text.match(/(?:transaction|trans|receipt|reference|ref|txn)\\s*(?:id|no\\.?|number|#)?\\s*[:#-]?\\s*([A-Z0-9][A-Z0-9._/-]{5,63})/i);
+  const labeled = text.match(/(?:transaction|trans|receipt|reference|ref|txn)\s*(?:id|no\\.?|number|#)?\s*[:#-]?\s*([A-Z0-9][A-Z0-9._/-]{5,63})/i);
   if (labeled?.[1]) return labeled[1].replace(/[.,]$/, '');
-  const candidates = text.match(/\\b[A-Z0-9][A-Z0-9-]{7,23}\\b/gi) ?? [];
+  const candidates = text.match(/\b[A-Z0-9][A-Z0-9-]{7,23}\b/gi) ?? [];
   return candidates.sort((a, b) => b.length - a.length)[0] ?? '';
 }
 
@@ -41,7 +41,6 @@ export function PayPanel({ orderId, total, expires, mock, hasPendingReceipt = fa
   orderId: string; total: string; expires: string | null; mock: boolean; hasPendingReceipt?: boolean;
 }) {
   const router = useRouter();
-  const inputRef = useRef<HTMLInputElement>(null);
   const [file, setFile] = useState<File | null>(null);
   const [reference, setReference] = useState('');
   const [ocrText, setOcrText] = useState('');
@@ -102,7 +101,6 @@ export function PayPanel({ orderId, total, expires, mock, hasPendingReceipt = fa
           <div className="space-y-2">
             <label htmlFor="telebirr-receipt" className="block text-sm font-bold">1. Upload your Telebirr receipt screenshot</label>
             <input
-              ref={inputRef}
               id="telebirr-receipt"
               type="file"
               accept="image/png,image/jpeg,image/webp"
