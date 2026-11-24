@@ -8,20 +8,6 @@ export type TelebirrReceipt = {
   paymentDate?: string;
 };
 
-export type TelebirrLookup =
-  | { kind: 'receipt'; receipt: TelebirrReceipt }
-  | { kind: 'not_found' }
-  | { kind: 'unavailable'; reason: string };
-
-export type TelebirrVerification =
-  | { outcome: 'VERIFIED'; receipt: TelebirrReceipt }
-  | { outcome: 'REJECTED'; reason: string; receipt?: TelebirrReceipt }
-  | { outcome: 'PENDING'; reason: string; receipt?: TelebirrReceipt };
-
-const RECEIPT_HOST = 'transactioninfo.ethiotelecom.et';
-const MAX_HTML_BYTES = 512 * 1024;
-const REFERENCE_PATTERN = /^[A-Z0-9]{10}$/;
-
 type ReceiptField =
   | 'payerName'
   | 'creditedPartyName'
