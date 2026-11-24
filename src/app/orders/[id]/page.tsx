@@ -36,7 +36,7 @@ export default async function OrderPage({ params }: { params: Promise<{ id: stri
 
       {order.status === 'AWAITING_PAYMENT' && !paid && (
         <PayPanel orderId={order.id} total={formatETB(order.total_amount)} expires={order.reservation_expires_at}
-          mock={process.env.PAYMENTS_MODE === 'mock'} hasPendingReceipt={hasPendingReceipt} />
+          mock={process.env.PAYMENTS_MODE === 'mock' && process.env.NODE_ENV !== 'production'} hasPendingReceipt={hasPendingReceipt} />
       )}
       {order.status === 'PENDING_ACCEPTANCE' && (
         <p className="card bg-warning-soft p-4 text-sm text-warning">The café is checking the kitchen. You’ll be able to pay as soon as it accepts.</p>
