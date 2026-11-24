@@ -140,3 +140,10 @@ revoke execute on function adjust_ingredient_stock(uuid,numeric,text,text,uuid) 
 grant execute on function create_ingredient(text,base_unit,numeric,numeric,uuid) to service_role;
 grant execute on function upsert_meal(uuid,text,text,uuid,text,numeric,int,text,boolean,jsonb,jsonb) to service_role;
 grant execute on function adjust_ingredient_stock(uuid,numeric,text,text,uuid) to service_role;
+-- The first migration revokes these business RPCs from browser roles. Explicitly
+-- grant them to the service role used by trusted server actions.
+grant execute on function create_order(uuid,jsonb) to service_role;
+grant execute on function accept_order(uuid,uuid,int) to service_role;
+grant execute on function reject_order(uuid,uuid,text) to service_role;
+grant execute on function start_preparing(uuid,uuid) to service_role;
+grant execute on function transition_order(uuid,order_status,uuid,text) to service_role;
