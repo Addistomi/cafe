@@ -31,7 +31,7 @@ function loadOcr(): Promise<OcrApi> {
 }
 
 function findReference(text: string): string {
-  const labeled = text.match(/(?:transaction|trans|receipt|reference|ref|txn)\s*(?:id|no\\.?|number|#)?\s*[:#-]?\s*([A-Z0-9][A-Z0-9._/-]{5,63})/i);
+  const labeled = text.match(/(?:transaction|trans|receipt|reference|ref|txn)\s*(?:id|no\.?|number|#)?\s*[:#-]?\s*([A-Z0-9][A-Z0-9._/-]{5,63})/i);
   if (labeled?.[1]) return labeled[1].replace(/[.,]$/, '');
   const candidates = text.match(/\b[A-Z0-9][A-Z0-9-]{7,23}\b/gi) ?? [];
   return candidates.sort((a, b) => b.length - a.length)[0] ?? '';
