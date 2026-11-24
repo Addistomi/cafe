@@ -113,9 +113,9 @@ export async function submitPaymentReceipt(orderId: string, formData: FormData):
   if (!z.string().uuid().safeParse(orderId).success)
     return { ok: false, error: 'Invalid order.' };
 
-  const reference = String(formData.get('reference') ?? '').trim();
-  if (!/^[A-Za-z0-9][A-Za-z0-9._/-]{5,63}$/.test(reference))
-    return { ok: false, error: 'Enter the transaction reference shown on your receipt.' };
+  const reference = String(formData.get('reference') ?? '').trim().toUpperCase();
+  if (!/^[A-Z0-9]{10}$/.test(reference))
+    return { ok: false, error: 'Enter the 10-character Telebirr transaction reference shown on your receipt.' };
 
   const file = formData.get('receipt');
   if (!(file instanceof File) || file.size === 0)
