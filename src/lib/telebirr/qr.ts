@@ -64,7 +64,7 @@ function parseTopLevel(hex: string): TlvEntry[] | null {
 
     const tag = hex.slice(offset, offset + 2).toUpperCase();
     const lengthText = hex.slice(offset + 2, offset + 4);
-    if (!/^\\d{2}$/.test(lengthText)) return null;
+    if (!/^\d{2}$/.test(lengthText)) return null;
 
     const length = Number(lengthText);
     const valueStart = offset + 4;
@@ -114,7 +114,7 @@ function parseReference(containerHex: string): string | null {
  */
 export function parseTelebirrQr(input: unknown): TelebirrQrResult {
   if (typeof input !== 'string') return { ok: false, reason: 'invalid-encoding' };
-  const raw = input.replace(/\\s+/g, '');
+  const raw = input.replace(/\s+/g, '');
   if (!raw) return { ok: false, reason: 'empty' };
   if (raw.length > MAX_QR_TEXT) return { ok: false, reason: 'invalid-encoding' };
 
