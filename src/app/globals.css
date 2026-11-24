@@ -1,0 +1,28 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer base {
+  html { -webkit-text-size-adjust: 100%; }
+  body { @apply bg-cream font-sans text-ink antialiased; }
+  h1, h2, h3 { @apply font-display tracking-tight; }
+  :focus-visible { @apply outline-2 outline-offset-2 outline-accent; }
+}
+
+@layer components {
+  .btn { @apply inline-flex min-h-11 items-center justify-center gap-2 rounded-field px-5 text-sm font-semibold transition-colors disabled:cursor-not-allowed disabled:opacity-50; }
+  .btn-primary { @apply btn bg-coffee text-cream hover:bg-coffee-dark; }
+  .btn-accent { @apply btn bg-accent text-ink hover:brightness-95; }
+  .btn-ghost { @apply btn border border-line bg-surface text-ink hover:bg-coffee-soft; }
+  .btn-danger { @apply btn bg-danger-soft text-danger hover:brightness-95; }
+  .card { @apply rounded-card border border-line bg-surface; }
+  .input { @apply min-h-11 w-full rounded-field border border-line bg-surface px-3 text-base placeholder:text-muted/70 focus:border-coffee; }
+  .label { @apply mb-1 block text-sm font-medium; }
+  .helper { @apply text-xs text-muted; }
+}
+
+@media (prefers-reduced-motion: no-preference) {
+  /* One orchestrated moment: the tower lights its windows floor by floor on first paint. */
+  @keyframes window-on { from { opacity: .15; } to { opacity: 1; } }
+  .window { animation: window-on .5s ease-out both; }
+}
