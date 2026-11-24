@@ -30,7 +30,7 @@ export default async function PaymentsPage() {
       <div>
         <p className="eyebrow">Transactions</p>
         <h2 className="mt-1 text-2xl font-extrabold text-coffee">Payment register</h2>
-        <p className="mt-1 text-sm text-muted">Resident screenshots and OCR references are evidence submitted for checking, not proof of payment. Only a verified Telebirr response can mark an order as paid.</p>
+        <p className="mt-1 text-sm text-muted">Resident screenshots and OCR references are evidence submitted for checking, not proof of payment. Only a matching Telebirr public receipt with the configured recipient and order amount can mark an order as paid.</p>
       </div>
       <div className="grid gap-3 sm:grid-cols-3">
         <div className="card p-4"><p className="text-xs font-semibold text-muted">Verified payments</p><p className="mt-2 font-display text-2xl font-extrabold text-coffee">{verified.length}</p></div>
@@ -57,7 +57,7 @@ export default async function PaymentsPage() {
                     <td className="p-3"><span className={`rounded-full px-2.5 py-1 text-xs font-bold ${success ? 'bg-success-soft text-success' : payment.status === 'FAILED' ? 'bg-danger-soft text-danger' : 'bg-warning-soft text-warning'}`}>{payment.status}</span></td>
                     <td className="max-w-[250px] p-3">
                       {payment.receipt_verified
-                        ? <p className="font-semibold text-success">Official Telebirr receipt verified</p>
+                        ? <p className="font-semibold text-success">Telebirr public receipt matched</p>
                         : payment.signature_verified
                           ? <p className="font-semibold text-success">Merchant signature verified</p>
                           : <p className="text-warning">Not verified</p>}
@@ -90,7 +90,7 @@ export default async function PaymentsPage() {
           </div>
         )}
       </section>
-      <p className="helper">Screenshots and extracted references are stored privately. The screenshot preview is private and links expire after 10 minutes. Pending receipts can be checked again; only a confirmed Telebirr receipt or a verified merchant callback marks an order paid.</p>
+      <p className="helper">Screenshots and extracted references are stored privately. The screenshot preview is private and links expire after 10 minutes. Pending receipts can be checked again; only a matching Telebirr public receipt or a verified merchant callback marks an order paid.</p>
     </div>
   );
 }
