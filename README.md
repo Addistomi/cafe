@@ -91,7 +91,7 @@ Protected layouts and server actions perform role checks. Hiding links in the UI
 | Physical stock is consumed once and only after verified payment | `start_preparing` |
 | Manual removal cannot consume reserved stock | `adjust_ingredient_stock` in migration 0002 |
 | Stock history is append-only | Trigger on `inventory_movements` |
-| Duplicate successful payment records for one order are blocked | Partial unique index in migration 0002 |
+| Duplicate successful payment records for one order are blocked | Serialized database trigger in migration 0002 |
 | Privileged database functions cannot be called by browsers | Execute grants restricted to `service_role`; server actions check user roles |
 | Residents see only their own orders | Supabase RLS policies |
 
