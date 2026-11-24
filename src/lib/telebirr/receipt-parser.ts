@@ -111,11 +111,20 @@ export function parseTelebirrReceiptHtml(html: string): TelebirrReceipt | null {
     const field = findLabel(cells[index]);
     if (!field || values.has(field)) continue;
 
-    // Skip other header cells. This handles the invoice header row where
-    // Invoice No., Payment Date and Settled Amount precede their values.
+    // Telebirr's invoice header is a three-column row: receipt number,
+    // payment date, and settled amount. Their values appear in the same
+    // columns on the following row, not immediately after each header cell.
+    const isInvoiceColumn = field === 'receiptNo' || field === 'paymentDate' || field === 'settledAmount';
+    const preferred = cells[index + (isInvoiceColumn ? 3 : 1)];
+    if (preferred && !findLabel(preferred)) {
+      values.set(field, preferred);
+      continue;
+    }
+
+    // Fallback for receipt variants where a field is displayed as a simple
+    // label/value pair in its own row.
     for (let next = index + 1; next < Math.min(cells.length, index + 5); next += 1) {
-      if (!cells[next]) continue;
-      if (findLabel(cells[next])) continue;
+      if (!cells[next] || findLabel(cells[next])) continue;
       values.set(field, cells[next]);
       break;
     }
