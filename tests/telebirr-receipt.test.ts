@@ -24,6 +24,22 @@ describe('parseTelebirrReceiptHtml', () => {
     });
   });
 
+  it('recognizes compact English labels after a bilingual slash', () => {
+    const compactLabels = receiptHtml
+      .replace('Payer Name', 'የከፋይስም/payername')
+      .replace('Credited party name', 'የገንዘብተቀባይስም/creditedpartyname')
+      .replace('Transaction Status', 'የክፍያውሁኔታ/transactionstatus')
+      .replace('Receipt No.', 'የክፍያቁጥር/receiptno')
+      .replace('Payment date', 'የክፍያቀን/paymentdate')
+      .replace('Settled Amount', 'የተከፈለውመጠን/settledamount');
+    expect(parseTelebirrReceiptHtml(compactLabels)).toMatchObject({
+      receiptNo: 'ABC1234567',
+      creditedPartyName: 'Fana Cafe',
+      transactionStatus: 'Completed',
+      settledAmount: 51.51,
+    });
+  });
+
   it('returns null for an unknown page instead of treating it as a receipt', () => {
     expect(parseTelebirrReceiptHtml('<html><body>Service temporarily unavailable</body></html>')).toBeNull();
   });
