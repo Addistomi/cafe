@@ -94,8 +94,11 @@ function normalizeLabel(value: string): string {
 
 function findLabel(value: string): ReceiptField | null {
   const label = normalizeLabel(value);
+  const compact = label.replace(/ /g, '');
   for (const [field, aliases] of Object.entries(LABELS) as [ReceiptField, string[]][]) {
-    if (aliases.some((alias) => label === alias || label.endsWith(alias))) return field;
+    if (aliases.some((alias) => label === alias || label.endsWith(alias) || compact === alias.replace(/ /g, ''))) {
+      return field;
+    }
   }
   return null;
 }
@@ -194,7 +197,7 @@ export async function fetchTelebirrReceipt(reference: string): Promise<TelebirrL
     if (receipt) return { kind: 'receipt', receipt };
 
     const plain = htmlCellText(html).toLowerCase();
-    if (/(receipt|transaction|record)\s+(was\s+)?not found|no receipt exists|invalid receipt number/.test(plain)) {
+    if (/(receipt|transaction|record)\s+(was\s+)?not found|no\s+(receipt|transaction|record)\b|invalid receipt number/.test(plain)) {
       return { kind: 'not_found' };
     }
 
