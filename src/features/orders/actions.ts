@@ -113,7 +113,7 @@ function receiptPaymentFields(verification: TelebirrVerification) {
     receipt_verified: verified,
     receipt_verified_at: verified ? new Date().toISOString() : null,
     receipt_verification_message: verified
-      ? 'Telebirr confirmed the transaction, recipient and settled amount.'
+      ? 'The Telebirr public receipt matched the order reference, recipient and settled amount.'
       : verification.reason,
     verified_recipient_name: receipt?.creditedPartyName ?? null,
     verified_settled_amount: receipt?.settledAmount ?? null,
