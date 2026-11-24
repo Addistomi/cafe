@@ -15,7 +15,7 @@ export default async function MenuManagementPage() {
   return (
     <div className="space-y-5">
       <div><p className="eyebrow">Catalogue and recipes</p><h2 className="mt-1 text-2xl font-extrabold text-coffee">Menu manager</h2><p className="mt-1 max-w-2xl text-sm text-muted">Create meals, set prices and define the exact ingredient quantities used for one serving. The recipe drives stock reservations and kitchen instructions.</p></div>
-      <MenuManager categories={categoryResult.data ?? []} ingredients={ingredientResult.data ?? []} meals={(mealResult.data ?? []) as never} />
+      <MenuManager categories={categoryResult.data ?? []} ingredients={ingredientResult.data ?? []} meals={(mealResult.data ?? []) as unknown as Parameters<typeof MenuManager>[0]['meals']} />
     </div>
   );
 }
