@@ -1,16 +1,18 @@
 import type { Metadata } from 'next';
 import { createAdminClient } from '@/lib/supabase/admin';
 import { formatETB } from '@/lib/money';
+import Image from 'next/image';
+import { retryPendingTelebirrReceipt } from '@/features/orders/actions';
 
 export const metadata: Metadata = { title: 'Payments' };
 
 export default async function PaymentsPage() {
   const db = createAdminClient();
   const { data, error } = await db.from('payments')
-    .select('id, provider, merchant_order_id, transaction_id, receipt_reference, receipt_storage_path, amount, currency, status, signature_verified, paid_at, created_at, orders(order_number, customer_name_snapshot, floor_snapshot, apartment_snapshot)')
+    .select('id, provider, merchant_order_id, transaction_id, receipt_reference, receipt_storage_path, receipt_verified, receipt_verified_at, receipt_verification_message, verified_recipient_name, verified_settled_amount, amount, currency, status, signature_verified, paid_at, created_at, orders(order_number, customer_name_snapshot, floor_snapshot, apartment_snapshot)')
     .order('created_at', { ascending: false }).limit(100);
   const payments = data ?? [];
-  const verified = payments.filter((payment) => payment.status === 'SUCCESS' && payment.signature_verified);
+  const verified = payments.filter((payment) => payment.status === 'SUCCESS' && (payment.signature_verified || payment.receipt_verified));
   const verifiedTotal = verified.reduce((sum, payment) => sum + Number(payment.amount), 0);
   const pending = payments.filter((payment) => payment.status === 'PENDING').length;
   const rows = await Promise.all(payments.map(async (payment) => {
@@ -44,7 +46,7 @@ export default async function PaymentsPage() {
               <tbody className="divide-y divide-line/70">
                 {rows.map(({ payment, receiptUrl }) => {
                   const order = payment.orders as unknown as { order_number: string; customer_name_snapshot: string; floor_snapshot: number; apartment_snapshot: string } | null;
-                  const success = payment.status === 'SUCCESS';
+                  const success = payment.status === 'SUCCESS' && (payment.signature_verified || payment.receipt_verified);
                   const officialReceiptUrl = payment.receipt_reference && /^[A-Z0-9]{10}$/.test(payment.receipt_reference)
                     ? `https://transactioninfo.ethiotelecom.et/receipt/${payment.receipt_reference}`
                     : null;
@@ -52,9 +54,33 @@ export default async function PaymentsPage() {
                     <td className="p-3"><p className="font-bold text-coffee">{order?.order_number ?? 'Order unavailable'}</p><p className="text-xs text-muted">{order?.customer_name_snapshot ?? '—'} · Floor {order?.floor_snapshot ?? '—'}, apt {order?.apartment_snapshot ?? '—'}</p></td>
                     <td className="p-3"><p className="max-w-[190px] truncate font-mono text-xs">{payment.receipt_reference ?? payment.transaction_id ?? payment.merchant_order_id}</p><p className="text-[10px] text-muted">{payment.provider}</p></td>
                     <td className="p-3 font-semibold">{formatETB(payment.amount)}</td>
-                    <td className="p-3"><span className={`rounded-full px-2.5 py-1 text-xs font-bold ${success ? 'bg-success-soft text-success' : 'bg-warning-soft text-warning'}`}>{payment.status}</span></td>
-                    <td className="p-3">{payment.signature_verified ? <span className="font-semibold text-success">Verified</span> : <span className="text-warning">Not verified</span>}</td>
-                    <td className="p-3">{receiptUrl ? <a className="font-semibold text-accent underline" href={receiptUrl} target="_blank" rel="noreferrer">View screenshot</a> : <span className="text-muted">—</span>}</td>
+                    <td className="p-3"><span className={`rounded-full px-2.5 py-1 text-xs font-bold ${success ? 'bg-success-soft text-success' : payment.status === 'FAILED' ? 'bg-danger-soft text-danger' : 'bg-warning-soft text-warning'}`}>{payment.status}</span></td>
+                    <td className="max-w-[250px] p-3">
+                      {payment.receipt_verified
+                        ? <p className="font-semibold text-success">Official Telebirr receipt verified</p>
+                        : payment.signature_verified
+                          ? <p className="font-semibold text-success">Merchant signature verified</p>
+                          : <p className="text-warning">Not verified</p>}
+                      {payment.verified_recipient_name && <p className="mt-1 text-xs text-muted">Recipient: {payment.verified_recipient_name}</p>}
+                      {payment.verified_settled_amount !== null && payment.verified_settled_amount !== undefined && (
+                        <p className="text-xs text-muted">Telebirr settled: {formatETB(payment.verified_settled_amount)}</p>
+                      )}
+                      {payment.receipt_verification_message && (
+                        <p className="mt-1 text-xs text-muted">{payment.receipt_verification_message}</p>
+                      )}
+                      {payment.status === 'PENDING' && payment.receipt_reference && (
+                        <form action={retryPendingTelebirrReceipt.bind(null, payment.id)} className="mt-2">
+                          <button className="btn-secondary" type="submit">Retry Telebirr check</button>
+                        </form>
+                      )}
+                    </td>
+                    <td className="p-3">
+                      {receiptUrl ? (
+                        <a href={receiptUrl} target="_blank" rel="noreferrer" title="Open full payment screenshot">
+                          <Image src={receiptUrl} width={88} height={104} alt="Resident payment receipt" unoptimized className="h-[76px] w-[64px] rounded border border-line object-cover" />
+                        </a>
+                      ) : <span className="text-muted">—</span>}
+                    </td>
                     <td className="p-3">{officialReceiptUrl ? <a className="font-semibold text-accent underline" href={officialReceiptUrl} target="_blank" rel="noreferrer">Open Telebirr receipt</a> : <span className="text-muted">—</span>}</td>
                     <td className="p-3 text-xs text-muted">{new Date(payment.paid_at ?? payment.created_at).toLocaleString('en-GB', { dateStyle: 'medium', timeStyle: 'short', timeZone: 'Africa/Addis_Ababa' })}</td>
                   </tr>;
@@ -64,7 +90,7 @@ export default async function PaymentsPage() {
           </div>
         )}
       </section>
-      <p className="helper">Screenshots and extracted references are stored privately. This page does not provide a manual “mark paid” action; the payment must be confirmed by the authorized Telebirr API integration.</p>
+      <p className="helper">Screenshots and extracted references are stored privately. The screenshot preview is private and links expire after 10 minutes. Pending receipts can be checked again; only a confirmed Telebirr receipt or a verified merchant callback marks an order paid.</p>
     </div>
   );
 }
