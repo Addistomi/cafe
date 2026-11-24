@@ -23,6 +23,12 @@ export async function login(_: FormState, formData: FormData): Promise<FormState
   const supabase = await createClient();
   const { error } = await supabase.auth.signInWithPassword(parsed.data);
   if (error) return { error: 'Email or password is incorrect.' };
+  const { data: userData } = await supabase.auth.getUser();
+  if (userData.user) {
+    const { data: profile } = await supabase.from('profiles').select('role, account_status').eq('id', userData.user.id).single();
+    if (profile?.account_status === 'ACTIVE' && (profile.role === 'OWNER' || profile.role === 'MANAGER')) redirect('/admin');
+    if (profile?.account_status === 'ACTIVE' && profile.role === 'KITCHEN') redirect('/kitchen');
+  }
   redirect('/');
 }
 
