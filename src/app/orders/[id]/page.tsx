@@ -48,6 +48,12 @@ export default async function OrderPage({ params }: { params: Promise<{ id: stri
       {hasPendingReceipt && latestReceipt?.receipt_verification_message && (
         <p className="card bg-warning-soft p-4 text-sm text-warning">{latestReceipt.receipt_verification_message}</p>
       )}
+      {latestReceipt?.status === 'FAILED' && latestReceipt.receipt_verification_message && (
+        <p className="card bg-danger-soft p-4 text-sm text-danger">
+          The submitted receipt was not accepted: {latestReceipt.receipt_verification_message}
+          You can submit a different transaction receipt below.
+        </p>
+      )}
       {order.status === 'PENDING_ACCEPTANCE' && (
         <p className="card bg-warning-soft p-4 text-sm text-warning">The café is checking the kitchen. You’ll be able to pay as soon as it accepts.</p>
       )}
