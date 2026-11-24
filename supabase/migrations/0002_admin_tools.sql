@@ -112,8 +112,27 @@ begin
 end;
 $$;
 
-create unique index if not exists payments_one_success_per_order
-  on payments(order_id) where status = 'SUCCESS';
+-- Serialize successful payment writes per order. This blocks duplicate success notifications
+-- without requiring cleanup of any historical payment rows.
+create or replace function prevent_duplicate_successful_payment() returns trigger
+language plpgsql security definer set search_path = public as $
+begin
+  if new.status = 'SUCCESS' then
+    perform pg_advisory_xact_lock(hashtextextended(new.order_id::text, 0));
+    if exists (
+      select 1 from payments p
+      where p.order_id = new.order_id and p.status = 'SUCCESS' and p.id <> coalesce(new.id, gen_random_uuid())
+    ) then
+      raise exception 'ORDER_ALREADY_PAID';
+    end if;
+  end if;
+  return new;
+end;
+$;
+drop trigger if exists payments_one_success_per_order on payments;
+create trigger payments_one_success_per_order
+  before insert or update of status, order_id on payments
+  for each row execute function prevent_duplicate_successful_payment();
 
 revoke execute on function create_ingredient(text,base_unit,numeric,numeric,uuid) from public, anon, authenticated;
 revoke execute on function upsert_meal(uuid,text,text,uuid,text,numeric,int,text,boolean,jsonb,jsonb) from public, anon, authenticated;
