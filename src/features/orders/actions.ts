@@ -295,8 +295,10 @@ export async function simulatePayment(orderId: string): Promise<ActionResult> {
   const { data: order } = await db.from('orders').select('id, customer_id, status, total_amount, currency').eq('id', orderId).single();
   if (!order || order.customer_id !== profile.id || order.status !== 'AWAITING_PAYMENT') return { ok: false, error: 'This order cannot be paid right now.' };
 
-  const { data: existing } = await db.from('payments').select('id').eq('order_id', orderId).eq('status', 'SUCCESS').eq('signature_verified', true).maybeSingle();
-  if (existing) return { ok: false, error: 'This order has already been paid.' };
+  const { data: existing } = await db.from('payments').select('id, signature_verified, receipt_verified')
+    .eq('order_id', orderId).eq('status', 'SUCCESS');
+  if ((existing ?? []).some((payment) => payment.signature_verified || payment.receipt_verified))
+    return { ok: false, error: 'This order has already been paid.' };
 
   const ref = 'MOCK-' + orderId.slice(0, 8) + '-' + Date.now();
   const { error } = await db.from('payments').insert({
