@@ -1,7 +1,7 @@
 import type { Metadata } from 'next';
 import { requireRole, MANAGERS } from '@/features/auth/session';
 import { createAdminClient } from '@/lib/supabase/admin';
-import { StockAdjustmentForm } from './stock-adjustment-form';
+import { CreateIngredientForm, StockAdjustmentForm } from './stock-adjustment-form';
 
 export const metadata: Metadata = { title: 'Inventory' };
 
@@ -28,7 +28,7 @@ export default async function IngredientsPage() {
         <div className="card p-4"><p className="text-xs font-semibold text-muted">Stock calculation</p><p className="mt-1 text-sm font-bold text-coffee">On hand − reserved</p></div>
       </div>
 
-      <StockAdjustmentForm ingredients={rows.map((row) => ({ id: row.id, name: row.name, base_unit: row.base_unit }))} />
+      <div className="grid items-start gap-5 xl:grid-cols-2">\n        <CreateIngredientForm />\n        <StockAdjustmentForm ingredients={rows.map((row) => ({ id: row.id, name: row.name, base_unit: row.base_unit }))} />\n      </div>
 
       <section className="card overflow-hidden">
         <div className="flex flex-wrap items-center justify-between gap-2 border-b border-line p-5"><div><h3 className="font-display text-lg font-bold text-coffee">Current ingredient levels</h3><p className="helper mt-1">Low stock is highlighted against each ingredient’s minimum level.</p></div><span className="text-xs text-muted">{rows.length} ingredients</span></div>
