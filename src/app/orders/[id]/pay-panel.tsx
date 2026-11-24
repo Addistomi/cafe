@@ -190,7 +190,7 @@ export function PayPanel({ orderId, total, expires, mock, hasPendingReceipt = fa
       {hasPendingReceipt ? (
         <div className="rounded-field border border-warning/30 bg-warning-soft p-4">
           <p className="font-bold text-warning">Receipt submitted · Awaiting verification</p>
-          <p className="mt-1 text-sm text-muted">We received your screenshot and transaction reference. Your order will only be marked paid after Telebirr confirms the transaction, recipient and amount.</p>
+          <p className="mt-1 text-sm text-muted">We received your screenshot and transaction reference. Your order will only be marked paid after The Telebirr receipt matched the transaction reference, recipient and amount.</p>
         </div>
       ) : (
         <>
