@@ -115,7 +115,7 @@ $$;
 -- Serialize successful payment writes per order. This blocks duplicate success notifications
 -- without requiring cleanup of any historical payment rows.
 create or replace function prevent_duplicate_successful_payment() returns trigger
-language plpgsql security definer set search_path = public as $
+language plpgsql security definer set search_path = public as $func$
 begin
   if new.status = 'SUCCESS' then
     perform pg_advisory_xact_lock(hashtextextended(new.order_id::text, 0));
@@ -128,7 +128,7 @@ begin
   end if;
   return new;
 end;
-$;
+$func$;
 drop trigger if exists payments_one_success_per_order on payments;
 create trigger payments_one_success_per_order
   before insert or update of status, order_id on payments
