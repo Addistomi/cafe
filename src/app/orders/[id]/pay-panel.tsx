@@ -98,6 +98,7 @@ export function PayPanel({ orderId, total, expires, mock, hasPendingReceipt = fa
   const [ocrText, setOcrText] = useState('');
   const [error, setError] = useState<string | null>(null);
   const [notice, setNotice] = useState<string | null>(null);
+  const [receiptResult, setReceiptResult] = useState<{ outcome: 'VERIFIED' | 'REJECTED' | 'PENDING'; message: string } | null>(null);
   const [scanning, setScanning] = useState(false);
   const [pending, start] = useTransition();
 
@@ -147,12 +148,13 @@ export function PayPanel({ orderId, total, expires, mock, hasPendingReceipt = fa
     data.set('reference', reference.trim().toUpperCase());
     setError(null);
     setNotice(null);
+    setReceiptResult(null);
     start(async () => {
       const result = await submitPaymentReceipt(orderId, data);
       if (!result.ok) {
         setError(result.error);
       } else {
-        setNotice(result.message);
+        setReceiptResult({ outcome: result.verification, message: result.message });
         router.refresh();
       }
     });
@@ -250,6 +252,32 @@ export function PayPanel({ orderId, total, expires, mock, hasPendingReceipt = fa
         </div>
       )}
       {error && <p role="alert" className="text-sm text-danger">{error}</p>}
+      {receiptResult && (
+        <div
+          role="status"
+          aria-live="polite"
+          className={receiptResult.outcome === 'VERIFIED'
+            ? 'rounded-field border border-success/30 bg-success-soft p-4'
+            : receiptResult.outcome === 'REJECTED'
+              ? 'rounded-field border border-danger/30 bg-danger-soft p-4'
+              : 'rounded-field border border-warning/30 bg-warning-soft p-4'}
+        >
+          <p className={receiptResult.outcome === 'VERIFIED'
+            ? 'font-bold text-success'
+            : receiptResult.outcome === 'REJECTED'
+              ? 'font-bold text-danger'
+              : 'font-bold text-warning'}>
+            {receiptResult.outcome === 'VERIFIED'
+              ? 'PAYMENT VERIFIED'
+              : receiptResult.outcome === 'REJECTED'
+                ? (receiptResult.message.startsWith('This appears to be a fake transaction.')
+                  ? 'FAKE TRANSACTION DETECTED'
+                  : 'PAYMENT REJECTED')
+                : 'VERIFICATION PENDING'}
+          </p>
+          <p className="mt-1 text-sm text-muted">{receiptResult.message}</p>
+        </div>
+      )}
       {notice && <p role="status" className="text-sm text-success">{notice}</p>}
       <p className="helper">A screenshot, QR code or OCR result is not proof of payment. Your order stays unpaid until the café's server has confirmed the actual Telebirr receipt.</p>
     </section>
