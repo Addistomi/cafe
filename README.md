@@ -7,7 +7,7 @@ Ordering and café-operations app for residents on floors 4–10. Built with Nex
 - **Resident storefront:** browse and search the menu, filter by category, customize removable ingredients and paid extras, manage the cart, select a floor/apartment and track orders.
 - **Owner workspace:** overview metrics, order desk, meal and recipe editor, inventory management, payment register and resident approvals.
 - **Kitchen board:** verified paid orders, preparing, ready for delivery and out-for-delivery stages.
-- **Resident payment receipt submission:** upload a Telebirr screenshot; the browser scans the Payment QR Code first, validates its checksum and extracts the transaction reference, then uses OCR as a fallback. The private receipt appears in the owner payment register.
+- **Resident direct-transfer payment:** residents transfer to Fana Cafe's Telebirr merchant account, upload the receipt screenshot, and the browser scans the QR or falls back to OCR. The Next.js server then looks up the reference on Telebirr's public receipt page and compares the official receipt with the order.
 
 ## Implemented workflows
 
@@ -20,10 +20,10 @@ Ordering and café-operations app for residents on floors 4–10. Built with Nex
 - Kitchen preparation consumes reserved stock once and only after verified payment.
 - Explicit ready → out-for-delivery → delivered transition.
 - Append-only inventory ledger, stock creation, stock purchases/adjustments and on-hand/reserved/available quantities.
-- Private resident payment receipt upload, in-browser Telebirr QR scanning with CRC validation, OCR fallback, duplicate-reference protection, merchant transfer details and an official receipt link in the admin payment register. Receipt submissions remain PENDING until server-side Telebirr receipt verification is connected.
+- Private resident payment receipt upload, in-browser Telebirr QR scanning with CRC validation, OCR fallback, duplicate-reference protection, merchant transfer details and server-side lookup of the official Telebirr receipt. The owner payment register shows a private screenshot preview, reference, recipient, amount, verification result and a retry action for pending checks.
 - Payment register and a development-only mock payment button.
 
-**Important payment limitation:** A QR code only contains the Telebirr transaction reference; it does not contain the payment amount or recipient and is not proof of payment. The website currently extracts the reference and stores the screenshot, but leaves the payment PENDING. The official public receipt page is `https://transactioninfo.ethiotelecom.et/receipt/{REFERENCE}`. It is reported to accept requests only from Ethiopian IP addresses, so cloud hosting outside Ethiopia may not be able to verify receipts directly. Before production, connect the server to an Ethiopian-network receipt lookup service and validate the official transaction status, Fana Cafe recipient, exact order amount and unique reference. Do not mark an order paid from a screenshot or decoded QR alone.
+**Important payment limitation:** The QR code contains only the transaction reference; it does not prove that money was received. The server now looks up `https://transactioninfo.ethiotelecom.et/receipt/{REFERENCE}` and parses the official HTML receipt. A payment is marked successful only when Telebirr returns the same reference, `Completed` status, the configured Fana Cafe recipient name and the exact order settled amount. A reference not found or a mismatched receipt is FAILED. If Telebirr times out, blocks the server or changes its HTML, the payment stays PENDING and an owner/manager can retry from Admin → Payments. Telebirr's public receipt host is reported to be reachable only from Ethiopian IP addresses, so test from your local Ethiopian network. Do not treat a screenshot or decoded QR as proof by itself.
 
 ## Setup
 
@@ -32,6 +32,7 @@ Ordering and café-operations app for residents on floors 4–10. Built with Nex
    - `supabase/migrations/0001_schema.sql`
    - `supabase/migrations/0002_admin_tools.sql`
    - `supabase/migrations/0003_payment_receipts.sql`
+   - `supabase/migrations/0004_telebirr_receipt_verification.sql`
    - `supabase/seed.sql` (sample menu, ingredients and recipes)
 3. Copy the environment template and fill in the Supabase project values:
 
@@ -45,8 +46,10 @@ Ordering and café-operations app for residents on floors 4–10. Built with Nex
    - `SUPABASE_SERVICE_ROLE_KEY` (server only; never expose it in client code)
    - `TELEBIRR_MERCHANT_NAME` (the official merchant display name shown on receipts)
    - `TELEBIRR_MERCHANT_ACCOUNT` (the merchant number or short code shown to residents; this is displayed publicly)
+   - `TELEBIRR_VERIFIED_RECIPIENT_NAMES` (required; exact credited-party name from a genuine Telebirr receipt; separate aliases with commas)
+   - `TELEBIRR_VERIFIED_RECIPIENT_ACCOUNT` (optional; exact unmasked credited account number from the receipt)
 
-   For local testing keep `PAYMENTS_MODE=mock`. Mock payments are not real Telebirr payments. In production, do not enable mock mode.
+   These verification settings are server-only. Do not prefix them with `NEXT_PUBLIC_`. For local development, test direct receipt verification while connected to an Ethiopian network. Keep `PAYMENTS_MODE=mock` only for separate local mock testing; mock payments are not real Telebirr payments. Mock payments are not real Telebirr payments. In production, do not enable mock mode.
 4. Install dependencies and start the app:
 
    ```bash
@@ -97,9 +100,10 @@ Protected layouts and server actions perform role checks. Hiding links in the UI
 | Manual removal cannot consume reserved stock | `adjust_ingredient_stock` in migration 0002 |
 | Stock history is append-only | Trigger on `inventory_movements` |
 | Duplicate successful payment records for one order are blocked | Serialized database trigger in migration 0002 |
-| Receipt images are private and uploaded only after resident/order checks | Server action and private Supabase Storage bucket in migration 0003 |
-| One pending screenshot receipt per order and duplicate references are blocked | Unique indexes in migration 0003 |
-| OCR is never treated as payment verification | Receipt records remain PENDING until provider verification |
+| Receipt images are private, and owner/manager users see short-lived screenshot previews | Server action, private Supabase Storage bucket and admin payment register in migration 0003 |
+| Duplicate transaction references cannot be attached to multiple payment records | Unique reference index in migration 0003 |
+| A Telebirr receipt is accepted only after its official reference, completed status, credited recipient and settled amount match the order | Server-side receipt lookup and verification fields in migration 0004 |
+| Kitchen stock can only be consumed after a verified merchant callback or official Telebirr receipt check | `start_preparing` in migration 0004 |
 | Privileged database functions cannot be called by browsers | Execute grants restricted to `service_role`; server actions check user roles |
 | Residents see only their own orders | Supabase RLS policies |
 
