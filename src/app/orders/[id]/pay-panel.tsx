@@ -149,9 +149,10 @@ export function PayPanel({ orderId, total, expires, mock, hasPendingReceipt = fa
     setNotice(null);
     start(async () => {
       const result = await submitPaymentReceipt(orderId, data);
-      if (!result.ok) setError(result.error);
-      else {
-        setNotice('Receipt submitted. Its transaction reference is awaiting official Telebirr verification; your order is not marked as paid yet.');
+      if (!result.ok) {
+        setError(result.error);
+      } else {
+        setNotice(result.message);
         router.refresh();
       }
     });
