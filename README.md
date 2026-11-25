@@ -130,5 +130,6 @@ npm run build
 7. Add suppliers, formal purchase records and wastage reasons if the café needs purchasing/cost reporting.
 8. Add automated notifications and live kitchen refresh.
 9. Configure production Supabase URL/keys, backups and deployment environment.
+10. Publish a KYC privacy notice and define a document-retention/deletion schedule. KYC files are private and signed previews expire after 10 minutes, but automatic expiry/deletion is not implemented yet.
 
 Do not put the Supabase service-role key or Telebirr private signing keys in browser code or public environment variables.
