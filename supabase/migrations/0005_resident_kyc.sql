@@ -51,6 +51,7 @@ create policy "resident reads own kyc or managers" on resident_kyc
 
 revoke all on table resident_kyc from public, anon, authenticated;
 grant select on table resident_kyc to authenticated;
+grant all privileges on table resident_kyc to service_role;
 
 -- Identity documents are private. All uploads and signed-link generation happen
 -- in server actions/pages after checking the signed-in user's role.
