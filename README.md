@@ -5,13 +5,13 @@ Ordering and café-operations app for residents on floors 4–10. Built with Nex
 ## Main experiences
 
 - **Resident storefront:** browse and search the menu, filter by category, customize removable ingredients and paid extras, manage the cart, select a floor/apartment and track orders.
-- **Owner workspace:** overview metrics, order desk, meal and recipe editor, inventory management, payment register and resident approvals.
+- **Owner workspace:** overview metrics, order desk, meal and recipe editor, inventory management, payment register and resident identity/KYC review.
 - **Kitchen board:** verified paid orders, preparing, ready for delivery and out-for-delivery stages.
 - **Resident direct-transfer payment:** residents transfer to Fana Cafe's Telebirr merchant account, upload the receipt screenshot, and the browser scans the QR or falls back to OCR. The Next.js server then looks up the reference on Telebirr's public receipt page and compares the official receipt with the order.
 
 ## Implemented workflows
 
-- Resident sign-up restricted to floors 4–10 in the form, Postgres constraints and signup trigger; café approval is required before checkout.
+- Resident sign-up restricted to floors 4–10. Residents create an account, confirm their email when email confirmation is enabled, then submit identity details and a private ID-document scan. An active owner/manager reviews the KYC application; ordering stays disabled until approval.
 - Menu search, category filter and sorting.
 - Per-meal recipes, removable ingredients and stock-tracked priced extras.
 - Cart and checkout with building floor picker.
@@ -33,6 +33,7 @@ Ordering and café-operations app for residents on floors 4–10. Built with Nex
    - `supabase/migrations/0002_admin_tools.sql`
    - `supabase/migrations/0003_payment_receipts.sql`
    - `supabase/migrations/0004_telebirr_receipt_verification.sql`
+   - `supabase/migrations/0005_resident_kyc.sql`
    - `supabase/seed.sql` (sample menu, ingredients and recipes)
 3. Copy the environment template and fill in the Supabase project values:
 
@@ -66,7 +67,7 @@ Ordering and café-operations app for residents on floors 4–10. Built with Nex
    where id = (select id from auth.users where email = 'you@example.com');
    ```
 
-6. Sign in again. Owners/managers are routed to `/admin`; kitchen staff are routed to `/kitchen`. Register a resident account and approve it from **Admin → Residents**.
+6. Sign in again. Owners/managers are routed to `/admin`; kitchen staff are routed to `/kitchen`. Residents register, sign in and complete `/resident/verification`. Review the submitted application and private documents from **Admin → Residents**. Use **Approve KYC & activate account** only after checking the documents.
 
 ## Key routes
 
@@ -83,7 +84,8 @@ Ordering and café-operations app for residents on floors 4–10. Built with Nex
 | `/admin/menu` | Owner / manager | Meals, recipes and paid extras |
 | `/admin/ingredients` | Owner / manager | Ingredients, stock and adjustments |
 | `/admin/payments` | Owner / manager | Payment records and private submitted receipts |
-| `/admin/residents` | Owner / manager | Approve resident accounts |
+| `/admin/residents` | Owner / manager | Review resident information and private KYC documents; approve or request corrections |
+| `/resident/verification` | Signed-in resident | Submit ID details/documents and check KYC review status |
 | `/kitchen` | Owner / manager / kitchen | Kitchen and delivery board |
 
 Protected layouts and server actions perform role checks. Hiding links in the UI is not treated as authorization.
@@ -101,6 +103,8 @@ Protected layouts and server actions perform role checks. Hiding links in the UI
 | Stock history is append-only | Trigger on `inventory_movements` |
 | Duplicate successful payment records for one order are blocked | Serialized database trigger in migration 0002 |
 | Receipt images are private, and owner/manager users see short-lived screenshot previews | Server action, private Supabase Storage bucket and admin payment register in migration 0003 |
+| Resident identity documents are private; only the resident and active owner/manager can read KYC records, while uploaded files are server-only and signed previews expire after 10 minutes | RLS, private `resident-kyc` bucket and manager-only review function in migration 0005 |
+| A resident cannot order until KYC is approved | `review_resident_kyc` atomically approves the application and activates the profile in migration 0005 |
 | Duplicate transaction references cannot be attached to multiple payment records | Unique reference index in migration 0003 |
 | A Telebirr receipt is accepted only after its official reference, completed status, credited recipient and settled amount match the order | Server-side receipt lookup and verification fields in migration 0004 |
 | Kitchen stock can only be consumed after a verified merchant callback or official Telebirr receipt check | `start_preparing` in migration 0004 |
