@@ -40,14 +40,17 @@ language sql stable security definer set search_path = public as $manager$
   );
 $manager$;
 
+revoke all on function is_manager() from public, anon;
+grant execute on function is_manager() to authenticated;
+
 alter table resident_kyc enable row level security;
 drop policy if exists "resident reads own kyc or staff" on resident_kyc;
 drop policy if exists "resident reads own kyc or managers" on resident_kyc;
 create policy "resident reads own kyc or managers" on resident_kyc
   for select to authenticated using (user_id = auth.uid() or is_manager());
 
-revoke insert, update, delete on resident_kyc from anon, authenticated;
-grant select on resident_kyc to authenticated;
+revoke all on table resident_kyc from public, anon, authenticated;
+grant select on table resident_kyc to authenticated;
 
 -- Identity documents are private. All uploads and signed-link generation happen
 -- in server actions/pages after checking the signed-in user's role.
