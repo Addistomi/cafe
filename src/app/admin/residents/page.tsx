@@ -52,7 +52,8 @@ export default async function ResidentsPage() {
   const { data: kycRows } = ids.length
     ? await db.from('resident_kyc').select('*').in('user_id', ids)
     : { data: [] as KycRecord[] };
-  const kycByUser = new Map<string, KycRecord>((kycRows as KycRecord[] | null ?? []).map((row) => [row.user_id, row]));
+  const kycList = (kycRows ?? []) as KycRecord[];
+  const kycByUser = new Map<string, KycRecord>(kycList.map((row) => [row.user_id, row]));
 
   const rows = await Promise.all(residents.map(async (resident) => {
     const kyc = kycByUser.get(resident.id) ?? null;
