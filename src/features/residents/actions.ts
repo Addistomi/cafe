@@ -70,6 +70,9 @@ export async function submitResidentKyc(_: FormState, formData: FormData): Promi
 
   const front = parseDocument(formData.get('id_front'), true);
   const back = parseDocument(formData.get('id_back'), false);
+  if (parsed.data.id_document_type !== 'PASSPORT' && !back.file) {
+    return { error: 'Upload both sides of your ID. For a passport, the photo page is enough.' };
+  }
   const proof = parseDocument(formData.get('residence_proof'), false);
   for (const document of [front, back, proof]) {
     if (document.error) return { error: document.error };
