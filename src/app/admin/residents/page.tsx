@@ -100,7 +100,7 @@ export default async function ResidentsPage() {
               <div className="flex flex-wrap items-start justify-between gap-3">
                 <div>
                   <h2 className="text-lg font-extrabold text-coffee">{kyc?.legal_name ?? resident.full_name}</h2>
-                  <p className="mt-1 text-sm text-muted">{kyc?.email ?? 'Email is not yet verified'} · {resident.phone ?? 'No phone number'}</p>
+                  <p className="mt-1 text-sm text-muted">{kyc?.email ?? 'Email is recorded when KYC is submitted'} · {resident.phone ?? 'No phone number'}</p>
                   <p className="mt-1 text-xs text-muted">Floor {resident.floor ?? '—'} · Apartment {resident.apartment_number ?? '—'}</p>
                 </div>
                 <span className={`rounded-full px-3 py-1 text-xs font-bold ${kyc?.status === 'APPROVED' ? 'bg-success-soft text-success' : kyc?.status === 'REJECTED' ? 'bg-danger-soft text-danger' : kyc?.status === 'PENDING' ? 'bg-warning-soft text-warning' : 'bg-coffee-soft text-muted'}`}>
