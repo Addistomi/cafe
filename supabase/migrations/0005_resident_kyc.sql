@@ -33,12 +33,12 @@ create table if not exists resident_kyc (
 create index if not exists resident_kyc_status_created on resident_kyc(status, created_at desc);
 
 create or replace function is_manager() returns boolean
-language sql stable security definer set search_path = public as $
+language sql stable security definer set search_path = public as $manager$
   select exists (
     select 1 from profiles
     where id = auth.uid() and role in ('OWNER', 'MANAGER') and account_status = 'ACTIVE'
   );
-$;
+$manager$;
 
 alter table resident_kyc enable row level security;
 drop policy if exists "resident reads own kyc or staff" on resident_kyc;
