@@ -24,7 +24,7 @@ const applicationSchema = z.object({
 });
 
 type DocumentName = 'id_front' | 'id_back' | 'residence_proof';
-type UploadedDocument = { file: File; extension: 'jpg' | 'png' | 'pdf'; path: string };
+type UploadedDocument = { name: DocumentName; file: File; extension: 'jpg' | 'png' | 'pdf'; path: string };
 
 function parseDocument(fileValue: FormDataEntryValue | null, required: boolean): { file?: File; extension?: 'jpg' | 'png' | 'pdf'; error?: string } {
   if (!(fileValue instanceof File) || fileValue.size === 0) {
