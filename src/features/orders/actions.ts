@@ -93,15 +93,6 @@ export async function advanceOrder(orderId: string, to: 'READY' | 'OUT_FOR_DELIV
   const actor = await requireRole(STAFF);
   return staffRpc('transition_order', { p_order: orderId, p_to: to, p_actor: actor.id });
 }
-export async function approveResident(userId: string): Promise<void> {
-  await requireRole(MANAGERS);
-  const { error } = await createAdminClient().from('profiles')
-    .update({ account_status: 'ACTIVE' }).eq('id', userId).eq('role', 'CUSTOMER');
-  if (error) throw new Error('The resident could not be approved.');
-  revalidatePath('/admin');
-  revalidatePath('/admin/residents');
-}
-
 function receiptPaymentFields(verification: TelebirrVerification) {
   const verified = verification.outcome === 'VERIFIED';
   const failed = verification.outcome === 'REJECTED';
