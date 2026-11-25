@@ -30,9 +30,11 @@ export default async function HomePage() {
             {profile && <Link href="/orders" className="btn border border-white/20 bg-white/10 text-cream hover:bg-white/15">Track my order</Link>}
           </div>
           {profile?.account_status === 'PENDING' && (
-            <p className="max-w-lg rounded-field border border-warning/30 bg-warning/15 p-3 text-sm text-cream">
-              Your resident account is waiting for café approval. You can explore the menu and place an order once approved.
-            </p>
+            <div className="max-w-lg rounded-field border border-warning/30 bg-warning/15 p-3 text-sm text-cream">
+              <p className="font-bold">Resident verification required</p>
+              <p className="mt-1">Complete your identity check or view its review status. Ordering unlocks after manager approval.</p>
+              <Link href="/resident/verification" className="mt-2 inline-block font-bold text-accent underline underline-offset-4">Open identity verification →</Link>
+            </div>
           )}
           {!profile && (
             <p className="text-sm text-cream/70">
