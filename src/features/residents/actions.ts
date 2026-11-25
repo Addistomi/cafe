@@ -19,7 +19,7 @@ const applicationSchema = z.object({
   id_document_type: z.enum(['FAYDA', 'KEBELE_ID', 'PASSPORT', 'DRIVER_LICENSE', 'OTHER']),
   id_document_last4: z.string().trim().regex(/^[A-Za-z0-9]{2,4}$/, 'Enter the last 2–4 characters of your ID number'),
   emergency_contact_name: z.string().trim().max(120).optional(),
-  emergency_contact_phone: z.string().trim().optional(),
+  emergency_contact_phone: z.string().trim().refine((value) => value === '' || /^(\\+251|0)?9\\d{8}$/.test(value), 'Enter a valid Ethiopian emergency contact number').optional(),
   emergency_contact_relation: z.string().trim().max(60).optional(),
 });
 
