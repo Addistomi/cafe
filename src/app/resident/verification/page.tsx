@@ -15,7 +15,7 @@ export default async function ResidentVerificationPage() {
 
   const supabase = await createClient();
   const { data: application } = await supabase.from('resident_kyc')
-    .select('status, review_note, created_at')
+    .select('status, review_note, updated_at')
     .eq('user_id', profile.id)
     .maybeSingle();
 
@@ -35,7 +35,7 @@ export default async function ResidentVerificationPage() {
           <span className="inline-flex rounded-full bg-warning-soft px-3 py-1 text-xs font-bold text-warning">KYC under review</span>
           <h2 className="text-xl font-extrabold text-coffee">Your documents have been received</h2>
           <p className="text-sm leading-relaxed text-muted">The café team is reviewing your identity information. You can browse the menu, but ordering stays locked until approval.</p>
-          <p className="text-xs text-muted">Submitted {new Date(application.created_at).toLocaleDateString('en-GB')}</p>
+          <p className="text-xs text-muted">Submitted {new Date(application.updated_at).toLocaleDateString('en-GB')}</p>
         </section>
       ) : (
         <>
@@ -76,10 +76,10 @@ export default async function ResidentVerificationPage() {
 
             <div className="rounded-field border border-line bg-coffee-soft/40 p-4">
               <h2 className="font-bold text-coffee">Identity document</h2>
-              <p className="helper mt-1">Upload a clear, readable front image or PDF. JPG, PNG or PDF · maximum 5 MB per file.</p>
+              <p className="helper mt-1">Upload a clear, readable front and back for ID cards (passport photo page only). JPG, PNG or PDF · maximum 5 MB per file.</p>
               <div className="mt-3 space-y-3">
                 <Field label="Front of ID (required)" name="id_front" type="file" accept="image/jpeg,image/png,application/pdf" />
-                <Field label="Back of ID (optional)" name="id_back" type="file" accept="image/jpeg,image/png,application/pdf" required={false} />
+                <Field label="Back of ID (required except for passports)" name="id_back" type="file" accept="image/jpeg,image/png,application/pdf" required={false} />
                 <Field label="Proof of residence (optional)" name="residence_proof" type="file" accept="image/jpeg,image/png,application/pdf" required={false} hint="For example, a lease or building residence letter." />
               </div>
             </div>
