@@ -3,7 +3,7 @@ import type { OrderRow } from '@/lib/types';
 
 const ORDER_SELECT = `id, order_number, status, subtotal, delivery_fee, total_amount, customer_name_snapshot,
   floor_snapshot, apartment_snapshot, note, created_at, reservation_expires_at,
-  payments(status, signature_verified),
+  payments(status, signature_verified, receipt_verified),
   order_items(id, meal_name_snapshot, quantity, line_total, note,
     order_item_ingredients(ingredient_name_snapshot, was_removed, source_type))`;
 
@@ -21,7 +21,7 @@ export async function getOrder(id: string): Promise<OrderRow | null> {
   return (data as unknown as OrderRow | null) ?? null;
 }
 
-export const isPaid = (o: OrderRow) => !!o.payments?.some((p) => p.status === 'SUCCESS' && p.signature_verified);
+export const isPaid = (o: OrderRow) => !!o.payments?.some((p) => p.status === 'SUCCESS' && (p.signature_verified || p.receipt_verified));
 
 /** What the kitchen needs to read at a glance: "No tomato · Extra: cheese". */
 export function describeCustomisation(item: NonNullable<OrderRow['order_items']>[number]): string[] {

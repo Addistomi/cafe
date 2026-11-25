@@ -24,7 +24,11 @@ export default async function AdminOrdersPage({ searchParams }: { searchParams: 
   return (
     <div className="space-y-5">
       <div className="flex flex-wrap items-center justify-between gap-3">
-        <h1 className="text-3xl font-extrabold text-coffee">Orders desk</h1>
+        <div>
+          <p className="eyebrow">Order management</p>
+          <h1 className="text-3xl font-extrabold text-coffee">Orders desk</h1>
+          <p className="mt-1 text-sm text-muted">Select any order card to see its full details, items, status history and payment records.</p>
+        </div>
         <div className="flex gap-2 text-sm font-semibold">
           <Link href="/admin/residents" className="btn-ghost min-h-9">Residents</Link>
           <Link href="/admin/ingredients" className="btn-ghost min-h-9">Stock</Link>
@@ -40,22 +44,27 @@ export default async function AdminOrdersPage({ searchParams }: { searchParams: 
       ) : (
         <ul className="grid gap-4 lg:grid-cols-2">
           {orders.map((o) => (
-            <li key={o.id} className="card space-y-3 p-4">
-              <div className="flex items-start justify-between gap-3">
-                <div>
-                  <p className="font-display text-lg font-bold">{o.order_number}</p>
-                  <p className="text-sm text-muted">{o.customer_name_snapshot} · Floor {o.floor_snapshot}, apt {o.apartment_snapshot}</p>
+            <li key={o.id} className="card space-y-3 p-4 transition-all hover:border-coffee/25 hover:shadow-md">
+              <Link href={`/admin/orders/${o.id}`} className="group block space-y-3 rounded-field focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-4 focus-visible:outline-accent">
+                <div className="flex items-start justify-between gap-3">
+                  <div>
+                    <p className="font-display text-lg font-bold text-coffee group-hover:underline">{o.order_number}</p>
+                    <p className="text-sm text-muted">{o.customer_name_snapshot} · Floor {o.floor_snapshot}, apt {o.apartment_snapshot}</p>
+                  </div>
+                  <div className="text-right"><StatusPill status={o.status} /><p className="mt-1 text-sm font-semibold">{formatETB(o.total_amount)}</p></div>
                 </div>
-                <div className="text-right"><StatusPill status={o.status} /><p className="mt-1 text-sm font-semibold">{formatETB(o.total_amount)}</p></div>
+                <ul className="space-y-1 text-sm">
+                  {o.order_items?.map((i) => (
+                    <li key={i.id}><span className="font-semibold">{i.quantity} × {i.meal_name_snapshot}</span>
+                      {describeCustomisation(i).map((d) => <span key={d} className="block text-muted">{d}</span>)}
+                    </li>
+                  ))}
+                </ul>
+                <p className="text-xs font-bold text-coffee">View full order details →</p>
+              </Link>
+              <div className="border-t border-line pt-3">
+                <OrderActions orderId={o.id} status={o.status} paid={isPaid(o)} canManage />
               </div>
-              <ul className="space-y-1 text-sm">
-                {o.order_items?.map((i) => (
-                  <li key={i.id}><span className="font-semibold">{i.quantity} × {i.meal_name_snapshot}</span>
-                    {describeCustomisation(i).map((d) => <span key={d} className="block text-muted">{d}</span>)}
-                  </li>
-                ))}
-              </ul>
-              <OrderActions orderId={o.id} status={o.status} paid={isPaid(o)} canManage />
             </li>
           ))}
         </ul>

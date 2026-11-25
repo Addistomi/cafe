@@ -1,11 +1,13 @@
 'use server';
 
+import { randomUUID } from 'node:crypto';
 import { revalidatePath } from 'next/cache';
 import { z } from 'zod';
 import { createAdminClient } from '@/lib/supabase/admin';
 import { getProfile, requireRole, MANAGERS, STAFF } from '@/features/auth/session';
 import { priceOrder, PricingError } from './pricing';
 import type { CatalogMeal } from '@/lib/types';
+import { verifyTelebirrReceiptForOrder, type TelebirrVerification } from '@/lib/telebirr/receipt';
 
 export type ActionResult<T = object> = ({ ok: true } & T) | { ok: false; error: string; staleMealIds?: string[] };
 
@@ -91,18 +93,192 @@ export async function advanceOrder(orderId: string, to: 'READY' | 'OUT_FOR_DELIV
   const actor = await requireRole(STAFF);
   return staffRpc('transition_order', { p_order: orderId, p_to: to, p_actor: actor.id });
 }
-export async function approveResident(userId: string): Promise<void> {
-  await requireRole(MANAGERS);
-  const { error } = await createAdminClient().from('profiles')
-    .update({ account_status: 'ACTIVE' }).eq('id', userId).eq('role', 'CUSTOMER');
-  if (error) throw new Error('The resident could not be approved.');
-  revalidatePath('/admin');
-  revalidatePath('/admin/residents');
+function receiptPaymentFields(verification: TelebirrVerification) {
+  const verified = verification.outcome === 'VERIFIED';
+  const failed = verification.outcome === 'REJECTED';
+  const receipt = verification.receipt;
+
+  return {
+    status: verified ? 'SUCCESS' : failed ? 'FAILED' : 'PENDING',
+    signature_verified: false,
+    receipt_verified: verified,
+    receipt_verified_at: verified ? new Date().toISOString() : null,
+    receipt_verification_message: verified
+      ? 'The Telebirr public receipt matched the order reference, recipient and settled amount.'
+      : verification.reason,
+    verified_recipient_name: receipt?.creditedPartyName ?? null,
+    verified_settled_amount: receipt?.settledAmount ?? null,
+    transaction_id: verified ? receipt?.receiptNo ?? null : null,
+    paid_at: verified ? new Date().toISOString() : null,
+  };
 }
 
-/** Development stand-in for a verified provider callback. Only enabled in mock mode. */
+/**
+ * Resident receipt intake and official Telebirr receipt verification.
+ * The screenshot is stored first so the owner can inspect it even when the
+ * upstream Telebirr receipt service is temporarily unavailable.
+ */
+export async function submitPaymentReceipt(
+  orderId: string,
+  formData: FormData,
+): Promise<ActionResult<{ verification: 'VERIFIED' | 'REJECTED' | 'PENDING'; message: string }>> {
+  const profile = await getProfile();
+  if (!profile || profile.role !== 'CUSTOMER' || profile.account_status !== 'ACTIVE')
+    return { ok: false, error: 'An active resident account is required.' };
+  if (!z.string().uuid().safeParse(orderId).success)
+    return { ok: false, error: 'Invalid order.' };
+
+  const reference = String(formData.get('reference') ?? '').trim().toUpperCase();
+  if (!/^[A-Z0-9]{10}$/.test(reference))
+    return { ok: false, error: 'Enter the 10-character Telebirr transaction reference shown on your receipt.' };
+
+  const file = formData.get('receipt');
+  if (!(file instanceof File) || file.size === 0)
+    return { ok: false, error: 'Choose your Telebirr payment screenshot.' };
+  const allowed = new Map([['image/jpeg', 'jpg'], ['image/png', 'png'], ['image/webp', 'webp']]);
+  const extension = allowed.get(file.type);
+  if (!extension) return { ok: false, error: 'Upload a JPG, PNG or WebP image.' };
+  if (file.size > 5 * 1024 * 1024) return { ok: false, error: 'The screenshot must be 5 MB or smaller.' };
+  const header = new Uint8Array(await file.slice(0, 12).arrayBuffer());
+  const validImage =
+    (file.type === 'image/jpeg' && header[0] === 0xff && header[1] === 0xd8 && header[2] === 0xff) ||
+    (file.type === 'image/png' && header.slice(0, 8).join(',') === '137,80,78,71,13,10,26,10') ||
+    (file.type === 'image/webp' && String.fromCharCode(...header.slice(0, 4)) === 'RIFF' &&
+      String.fromCharCode(...header.slice(8, 12)) === 'WEBP');
+  if (!validImage) return { ok: false, error: 'The uploaded file does not match a supported image format.' };
+
+  const db = createAdminClient();
+  const { data: order, error: orderError } = await db.from('orders')
+    .select('id, customer_id, status, total_amount, currency')
+    .eq('id', orderId).single();
+  if (orderError || !order || order.customer_id !== profile.id || order.status !== 'AWAITING_PAYMENT')
+    return { ok: false, error: 'This order is not available for payment submission.' };
+
+  const { data: successful } = await db.from('payments').select('id, signature_verified, receipt_verified')
+    .eq('order_id', orderId).eq('status', 'SUCCESS');
+  if ((successful ?? []).some((payment) => payment.signature_verified || payment.receipt_verified))
+    return { ok: false, error: 'This order has already been paid.' };
+
+  const { data: pending } = await db.from('payments').select('id')
+    .eq('order_id', orderId).eq('status', 'PENDING')
+    .not('receipt_storage_path', 'is', null).maybeSingle();
+  if (pending) return { ok: false, error: 'A receipt is already submitted for this order and is awaiting verification. The café can retry the Telebirr check from Admin → Payments.' };
+
+  const storagePath = profile.id + '/' + orderId + '/' + randomUUID() + '.' + extension;
+  const { error: uploadError } = await db.storage.from('payment-receipts').upload(storagePath, file, {
+    contentType: file.type, cacheControl: '3600', upsert: false,
+  });
+  if (uploadError) return { ok: false, error: 'The receipt could not be uploaded. Please try again.' };
+
+  // Never trust the user-supplied screenshot, OCR, or QR as proof. Query
+  // Telebirr by the reference and compare its own receipt with this order.
+  const verification = await verifyTelebirrReceiptForOrder(reference, Number(order.total_amount));
+  const verificationFields = receiptPaymentFields(verification);
+  const insertPayload = {
+    order_id: orderId,
+    provider: 'TELEBIRR',
+    merchant_order_id: 'RECEIPT-' + randomUUID(),
+    amount: order.total_amount,
+    currency: order.currency ?? 'ETB',
+    receipt_reference: reference,
+    receipt_storage_path: storagePath,
+    ...verificationFields,
+  };
+
+  const { error: insertError } = await db.from('payments').insert(insertPayload);
+  if (insertError) {
+    // Preserve the screenshot for the owner even if a reference has already
+    // been submitted or a concurrent submission won the unique-index race.
+    if (insertError.code === '23505') {
+      const duplicatePayload = {
+        order_id: orderId,
+        provider: 'TELEBIRR',
+        merchant_order_id: 'RECEIPT-' + randomUUID(),
+        amount: order.total_amount,
+        currency: order.currency ?? 'ETB',
+        status: 'FAILED',
+        signature_verified: false,
+        receipt_verified: false,
+        receipt_reference: null,
+        receipt_storage_path: storagePath,
+        receipt_verification_message: 'This transaction reference has already been submitted. The screenshot has been saved for owner review.',
+      };
+      const { error: duplicateSaveError } = await db.from('payments').insert(duplicatePayload);
+      if (duplicateSaveError) {
+        await db.storage.from('payment-receipts').remove([storagePath]);
+        return { ok: false, error: 'This reference was already submitted and the additional screenshot could not be saved.' };
+      }
+      for (const path of ['/admin', '/admin/payments', '/orders', '/orders/' + orderId]) revalidatePath(path);
+      return {
+        ok: true,
+        verification: 'REJECTED',
+        message: 'This transaction reference has already been submitted. The screenshot was saved for the café to review.',
+      };
+    }
+
+    await db.storage.from('payment-receipts').remove([storagePath]);
+    return { ok: false, error: 'Your receipt could not be saved. Please try again.' };
+  }
+
+  for (const path of ['/admin', '/admin/orders', '/admin/payments', '/kitchen', '/orders', '/orders/' + orderId]) {
+    revalidatePath(path);
+  }
+
+  return {
+    ok: true,
+    verification: verification.outcome,
+    message: verification.outcome === 'VERIFIED'
+      ? 'Telebirr confirmed your payment. Your order is now marked as paid.'
+      : verification.reason,
+  };
+}
+
+/** Owner/manager retry for a receipt that is still pending after an upstream timeout or parse issue. */
+export async function retryPendingTelebirrReceipt(paymentId: string, _formData: FormData): Promise<void> {
+  await requireRole(MANAGERS);
+  if (!z.string().uuid().safeParse(paymentId).success) {
+    throw new Error('Invalid payment record.');
+  }
+
+  const db = createAdminClient();
+  const { data: payment, error: paymentError } = await db.from('payments')
+    .select('id, order_id, receipt_reference, status, receipt_storage_path, orders(total_amount)')
+    .eq('id', paymentId).single();
+
+  if (paymentError || !payment || payment.status !== 'PENDING' ||
+      !payment.receipt_reference || !payment.receipt_storage_path) {
+    throw new Error('This payment is not a pending Telebirr receipt.');
+  }
+
+  const order = payment.orders as unknown as { total_amount: number } | null;
+  if (!order) throw new Error('The order for this payment could not be found.');
+
+  const verification = await verifyTelebirrReceiptForOrder(
+    payment.receipt_reference,
+    Number(order.total_amount),
+  );
+
+  const update = receiptPaymentFields(verification);
+  const { error: updateError } = await db.from('payments')
+    .update(update)
+    .eq('id', paymentId)
+    .eq('status', 'PENDING');
+
+  if (updateError) {
+    throw new Error(updateError.code === '23505'
+      ? 'This transaction reference has already been used by another successful payment.'
+      : 'The Telebirr verification result could not be saved.');
+  }
+
+  for (const path of ['/admin', '/admin/orders', '/admin/payments', '/kitchen', '/orders', '/orders/' + payment.order_id]) {
+    revalidatePath(path);
+  }
+}
+
+/** Development-only payment simulator. Never enabled in production. */
 export async function simulatePayment(orderId: string): Promise<ActionResult> {
-  if (process.env.PAYMENTS_MODE !== 'mock') return { ok: false, error: 'Mock payments are disabled.' };
+  if (process.env.PAYMENTS_MODE !== 'mock' || process.env.NODE_ENV === 'production')
+    return { ok: false, error: 'Mock payments are disabled.' };
   const profile = await getProfile();
   if (!profile || profile.role !== 'CUSTOMER' || profile.account_status !== 'ACTIVE') return { ok: false, error: 'An active resident account is required.' };
 
@@ -110,8 +286,10 @@ export async function simulatePayment(orderId: string): Promise<ActionResult> {
   const { data: order } = await db.from('orders').select('id, customer_id, status, total_amount, currency').eq('id', orderId).single();
   if (!order || order.customer_id !== profile.id || order.status !== 'AWAITING_PAYMENT') return { ok: false, error: 'This order cannot be paid right now.' };
 
-  const { data: existing } = await db.from('payments').select('id').eq('order_id', orderId).eq('status', 'SUCCESS').eq('signature_verified', true).maybeSingle();
-  if (existing) return { ok: false, error: 'This order has already been paid.' };
+  const { data: existing } = await db.from('payments').select('id, signature_verified, receipt_verified')
+    .eq('order_id', orderId).eq('status', 'SUCCESS');
+  if ((existing ?? []).some((payment) => payment.signature_verified || payment.receipt_verified))
+    return { ok: false, error: 'This order has already been paid.' };
 
   const ref = 'MOCK-' + orderId.slice(0, 8) + '-' + Date.now();
   const { error } = await db.from('payments').insert({

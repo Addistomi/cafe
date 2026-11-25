@@ -1,6 +1,7 @@
 import { notFound, redirect } from 'next/navigation';
 import { getProfile } from '@/features/auth/session';
 import { getOrder, isPaid } from '@/features/orders/queries';
+import { createClient } from '@/lib/supabase/server';
 import { StatusPill } from '@/components/status-pill';
 import { OrderTimeline } from '@/components/timeline';
 import { formatETB } from '@/lib/money';
@@ -13,6 +14,16 @@ export default async function OrderPage({ params }: { params: Promise<{ id: stri
   if (!order) notFound();
   const paid = isPaid(order);
 
+  const supabase = await createClient();
+  const { data: latestReceipt } = await supabase.from('payments')
+    .select('status, receipt_reference, receipt_storage_path, receipt_verification_message')
+    .eq('order_id', order.id)
+    .not('receipt_storage_path', 'is', null)
+    .order('created_at', { ascending: false })
+    .limit(1)
+    .maybeSingle();
+  const hasPendingReceipt = latestReceipt?.status === 'PENDING' && Boolean(latestReceipt.receipt_storage_path);
+
   return (
     <div className="mx-auto max-w-2xl space-y-6">
       <div className="flex items-start justify-between gap-3">
@@ -23,8 +34,30 @@ export default async function OrderPage({ params }: { params: Promise<{ id: stri
         <StatusPill status={order.status} />
       </div>
 
+      {order.status === 'AWAITING_PAYMENT' && paid && (
+        <p className="card border border-success/30 bg-success-soft p-4 text-sm text-success">
+          Telebirr has confirmed your payment. Your order is paid and waiting for the kitchen to begin preparation.
+        </p>
+      )}
       {order.status === 'AWAITING_PAYMENT' && !paid && (
-        <PayPanel orderId={order.id} total={formatETB(order.total_amount)} expires={order.reservation_expires_at} mock={process.env.PAYMENTS_MODE === 'mock'} />
+        <PayPanel orderId={order.id} total={formatETB(order.total_amount)} expires={order.reservation_expires_at}
+          mock={process.env.PAYMENTS_MODE === 'mock' && process.env.NODE_ENV !== 'production'} hasPendingReceipt={hasPendingReceipt}
+          merchantName={process.env.TELEBIRR_MERCHANT_NAME ?? 'Fana Cafe'}
+          merchantAccount={process.env.TELEBIRR_MERCHANT_ACCOUNT ?? ''} />
+      )}
+      {hasPendingReceipt && latestReceipt?.receipt_verification_message && (
+        <p className="card bg-warning-soft p-4 text-sm text-warning">{latestReceipt.receipt_verification_message}</p>
+      )}
+      {latestReceipt?.status === 'FAILED' && latestReceipt.receipt_verification_message && (
+        <div role="alert" className="card border border-danger/30 bg-danger-soft p-4 text-sm text-danger">
+          <p className="font-bold">
+            {latestReceipt.receipt_verification_message.startsWith('This appears to be a fake transaction.')
+              ? 'FAKE TRANSACTION DETECTED'
+              : 'PAYMENT REJECTED'}
+          </p>
+          <p className="mt-1">{latestReceipt.receipt_verification_message}</p>
+          <p className="mt-2">This receipt was not accepted. You can submit a different genuine payment receipt below.</p>
+        </div>
       )}
       {order.status === 'PENDING_ACCEPTANCE' && (
         <p className="card bg-warning-soft p-4 text-sm text-warning">The café is checking the kitchen. You’ll be able to pay as soon as it accepts.</p>
