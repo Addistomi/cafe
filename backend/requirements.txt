@@ -6,3 +6,5 @@ alembic>=1.14,<2
 pydantic-settings>=2.6,<3
 python-multipart>=0.0.20,<1
 email-validator>=2.2,<3
+pwdlib[argon2]>=0.2,<1
+PyJWT>=2.10,<3
