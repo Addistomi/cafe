@@ -21,7 +21,7 @@ Branch: `migration/react-fastapi-postgres`
 - No production database has been provisioned or connected.
 - No Alembic migration has been generated or applied to a real database.
 - No Supabase data or storage files have been exported or copied.
-- Authentication endpoints, password hashing, token/session handling and role authorization are not implemented.
+- Resident registration, password hashing (Argon2), JWT login, and the authenticated `/auth/me` endpoint are implemented. Full role-specific authorization policies are still pending.
 - Cafe business APIs and full React resident/admin/kitchen screens are not yet ported.
 - Telebirr receipt verification is not yet implemented in FastAPI.
 - No deployment or production cutover has occurred.
