@@ -36,3 +36,13 @@ Branch: `migration/react-fastapi-postgres`
 6. Port the existing React experience and connect each screen to the API.
 7. Generate and test Alembic migrations against a clean local PostgreSQL database.
 8. Prepare a staging database and a protected, verifiable data migration.
+
+
+## Latest API endpoints
+
+- `POST /auth/register`
+- `POST /auth/login`
+- `GET /auth/me`
+- `GET /menu/categories`
+- `GET /menu/meals`
+- `GET /menu/meals/{meal_id}`
