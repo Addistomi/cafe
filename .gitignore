@@ -4,3 +4,10 @@ node_modules
 .env.local
 next-env.d.ts
 tsconfig.tsbuildinfo
+
+# Python backend
+.venv/
+__pycache__/
+*.py[cod]
+.pytest_cache/
+.mypy_cache/
